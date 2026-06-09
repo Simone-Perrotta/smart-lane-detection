@@ -1,0 +1,14 @@
+.venv/
+__pychache__/
+.pytest_cache/
+.DS_Store
+
+data/videos/*
+data/images/*
+results/videos/*
+results/images/*
+
+!data/videos/.gitkeep
+!data/images/.gitkeep
+!results/videos/.gitkeep
+!results/images/.gitkeep
