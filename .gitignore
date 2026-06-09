@@ -1,13 +1,22 @@
+# Virtual environment
 .venv/
-__pychache__/
+
+# Python cache 
+__pycache__/
+*.pyc
 .pytest_cache/
+
+# MacOs system files
+__MACOSX/
 .DS_Store
 
+# Input and output data
 data/videos/*
 data/images/*
 results/videos/*
 results/images/*
 
+# Keep the directories but ignore the files inside
 !data/videos/.gitkeep
 !data/images/.gitkeep
 !results/videos/.gitkeep
