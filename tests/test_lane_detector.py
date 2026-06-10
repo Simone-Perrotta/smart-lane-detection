@@ -3,7 +3,8 @@ import pytest
 
 from src.smart_lane_detection.lane_detector import (
     convert_to_grayscale,
-    apply_gaussian_blur
+    apply_gaussian_blur,
+    detect_edges
     )
 
 def test_convert_to_grayscale_returns_2d_image():
@@ -39,3 +40,25 @@ def test_apply_gaussian_blur_output_shape():
     blurred = apply_gaussian_blur(image, kernel_size=5)
 
     assert blurred.shape == image.shape, "Output image should have the same shape as input image."
+
+def test_detect_edges_invalid_input():
+    with pytest.raises(ValueError):
+        detect_edges(None)  # Input image is None
+
+    with pytest.raises(ValueError):
+        detect_edges(np.zeros((100, 100, 3), dtype=np.uint8))  # Not a single-channel image
+
+    with pytest.raises(ValueError):
+        detect_edges(np.zeros((100, 100), dtype=np.uint8), low_threshold=-1)  # Invalid low threshold
+
+    with pytest.raises(ValueError):
+        detect_edges(np.zeros((100, 100), dtype=np.uint8), high_threshold=-1)  # Invalid high threshold
+
+    with pytest.raises(ValueError):
+        detect_edges(np.zeros((100, 100), dtype=np.uint8), low_threshold=150, high_threshold=50)  # Low threshold >= high threshold
+
+def test_detect_edges_output_shape():
+    image = np.zeros((100, 100), dtype=np.uint8)
+    edges = detect_edges(image, low_threshold=50, high_threshold=150)
+
+    assert edges.shape == image.shape, "Output image should have the same shape as input image."
