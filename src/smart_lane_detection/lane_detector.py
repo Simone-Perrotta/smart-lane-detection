@@ -44,3 +44,28 @@ def detect_edges(image: np.ndarray, low_threshold: int = 50, high_threshold: int
     
     return cv2.Canny(image, low_threshold, high_threshold)
 
+def region_of_interest(image: np.ndarray, vertices: np.ndarray) -> np.ndarray:
+    """
+    Apply a mask to the input image, keeping only the region defined by the vertices.
+    """
+
+    if image is None:
+        raise ValueError("Input image is None.")
+    
+    if vertices is None or len(vertices) == 0:
+        raise ValueError("Vertices must be a non-empty array.")
+
+    mask = np.zeros_like(image)
+
+    if len(image.shape) > 2:
+        channel_count = image.shape[2]
+        mask_color = (255,) * channel_count
+    else:
+        mask_color = 255
+    
+    cv2.fillPoly(mask, vertices, mask_color)
+
+    masked_image = cv2.bitwise_and(image, mask)
+
+    return masked_image
+

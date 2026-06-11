@@ -4,7 +4,8 @@ import pytest
 from src.smart_lane_detection.lane_detector import (
     convert_to_grayscale,
     apply_gaussian_blur,
-    detect_edges
+    detect_edges,
+    region_of_interest
     )
 
 def test_convert_to_grayscale_returns_2d_image():
@@ -62,3 +63,71 @@ def test_detect_edges_output_shape():
     edges = detect_edges(image, low_threshold=50, high_threshold=150)
 
     assert edges.shape == image.shape, "Output image should have the same shape as input image."
+
+def test_region_of_interest_invalid_input():
+    valid_vertices = np.array([
+        [
+            (0, 0),
+            (1, 0),
+            (1, 1),
+            (0, 1),
+        ]
+    ], dtype=np.int32)
+
+    with pytest.raises(ValueError):
+        region_of_interest(None, valid_vertices)
+
+    with pytest.raises(ValueError):
+        region_of_interest(np.zeros((100, 100), dtype=np.uint8), None)
+
+    with pytest.raises(ValueError):
+        region_of_interest(np.zeros((100, 100), dtype=np.uint8), np.array([]))
+
+
+def test_region_of_interest_output_shape():
+    image = np.zeros((100, 100), dtype=np.uint8)
+
+    vertices = np.array([
+        [
+            (0, 0),
+            (99, 0),
+            (99, 99),
+            (0, 99),
+        ]
+    ], dtype=np.int32)
+
+    masked_image = region_of_interest(image, vertices)
+
+    assert masked_image.shape == image.shape, "Output image should have the same shape as input image."
+
+
+def test_region_of_interest_removes_pixels_outside_region():
+    image = np.ones((100, 100), dtype=np.uint8) * 255
+
+    vertices = np.array([
+        [
+            (0, 100),
+            (50, 50),
+            (100, 100),
+        ]
+    ], dtype=np.int32)
+
+    masked_image = region_of_interest(image, vertices)
+
+    assert masked_image[10, 50] == 0
+
+
+def test_region_of_interest_keeps_pixels_inside_region():
+    image = np.ones((100, 100), dtype=np.uint8) * 255
+
+    vertices = np.array([
+        [
+            (0, 100),
+            (50, 50),
+            (100, 100),
+        ]
+    ], dtype=np.int32)
+
+    masked_image = region_of_interest(image, vertices)
+
+    assert masked_image[90, 50] == 255
