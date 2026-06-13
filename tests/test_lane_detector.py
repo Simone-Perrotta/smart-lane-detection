@@ -7,7 +7,8 @@ from src.smart_lane_detection.lane_detector import (
     apply_gaussian_blur,
     detect_edges,
     region_of_interest,
-    detect_lines
+    detect_lines,
+    draw_lines
     )
 
 def test_convert_to_grayscale_returns_2d_image():
@@ -178,3 +179,29 @@ def test_detect_lines_finds_line_segments():
     assert isinstance(lines, np.ndarray)
     assert len(lines) > 0
     assert lines.shape[2] == 4
+
+def test_draw_lines_draws_on_image():
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+    lines = np.array([[[10, 10, 90, 90]]], dtype=np.int32)
+
+    output = draw_lines(image, lines, color=(255, 0, 0), thickness=2)
+
+    assert np.any(output[10:12, 10:12] == [255, 0, 0])
+    assert np.any(output[88:90, 88:90] == [255, 0, 0])
+
+def test_draw_lines_keeps_original_image_unchanged():
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+    original = image.copy()
+    lines = np.array([[[10, 10, 90, 90]]], dtype=np.int32)
+
+    draw_lines(image, lines)
+
+    assert np.array_equal(image, original)
+
+def test_draw_lines_handles_empty_lines():
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+    lines = np.array([])
+
+    output = draw_lines(image, lines)
+
+    assert np.array_equal(output, image)

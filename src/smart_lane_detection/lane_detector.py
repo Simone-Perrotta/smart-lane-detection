@@ -70,7 +70,7 @@ def region_of_interest(image: np.ndarray, vertices: np.ndarray) -> np.ndarray:
     return masked_image
 
 def detect_lines(image: np.ndarray, rho: float = 1, theta: float = np.pi / 180, threshold: int = 15, 
-                 min_line_length: int =  50, max_line_gap: int = 100) -> np.ndarray:
+                 min_line_length: int = 50, max_line_gap: int = 100) -> np.ndarray:
     
     """
     Detect lines in the input image using the Hough Transform.
@@ -85,18 +85,46 @@ def detect_lines(image: np.ndarray, rho: float = 1, theta: float = np.pi / 180, 
     if rho <= 0 or theta <= 0 or threshold <= 0:
         raise ValueError("Rho, theta, and threshold must be positive values.")
     
-    if min_line_length < 0 or max_line_gap < 0:
-        raise ValueError("Min line length and max line gap must be non-negative.")
+    if min_line_length <= 0 or max_line_gap < 0:
+        raise ValueError("Min line length must be positive and max line gap must be non-negative.")
     
-    lines = cv2.HoughLinesP(image, rho, theta, threshold, min_line_length, max_line_gap)
+    lines = cv2.HoughLinesP(
+        image, 
+        rho, 
+        theta, 
+        threshold,
+        np.array([]),
+        minLineLength=min_line_length, 
+        maxLineGap=max_line_gap
+    )
     
     if lines is None:
         return np.array([])  # Return an empty array if no lines are detected
     
-    """
-    Returns a NumPy array of detected lines, where each line is represented as a 4-element array [x1, y1, x2, y2].
-    """
-    
     return lines
 
+def draw_lines(image: np.ndarray, lines: np.ndarray, color: tuple = (0, 255, 0), thickness: int = 2) -> np.ndarray:
+    """
+    Draw lines on the input image.
+    """
+
+    if image is None:
+        raise ValueError("Input image is None.")
+    
+    if lines is None or len(lines) == 0:
+        lines = np.array([])  # Return an empty array if no lines are provided
+    
+    if len(color) != 3:
+        raise ValueError("Color must be a tuple of 3 elements (B, G, R).")
+    
+    if thickness <= 0:
+        raise ValueError("Thickness must be a positive integer.")
+    
+    line_image = np.copy(image)
+    
+    for line in lines:
+        for x1, y1, x2, y2 in line:
+            cv2.line(line_image, (x1, y1), (x2, y2), color, thickness)
+    
+    return line_image
 
