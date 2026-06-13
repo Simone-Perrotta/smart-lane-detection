@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import pytest
 
@@ -5,7 +6,8 @@ from src.smart_lane_detection.lane_detector import (
     convert_to_grayscale,
     apply_gaussian_blur,
     detect_edges,
-    region_of_interest
+    region_of_interest,
+    detect_lines
     )
 
 def test_convert_to_grayscale_returns_2d_image():
@@ -131,3 +133,48 @@ def test_region_of_interest_keeps_pixels_inside_region():
     masked_image = region_of_interest(image, vertices)
 
     assert masked_image[90, 50] == 255
+
+def test_detect_lines_invalid_input():
+    image = np.zeros((100, 100), dtype=np.uint8)
+
+    with pytest.raises(ValueError):
+        detect_lines(None)
+
+    with pytest.raises(ValueError):
+        detect_lines(np.zeros((100, 100, 3), dtype=np.uint8))
+
+    with pytest.raises(ValueError):
+        detect_lines(image, rho=0)
+
+    with pytest.raises(ValueError):
+        detect_lines(image, theta=0)
+
+    with pytest.raises(ValueError):
+        detect_lines(image, threshold=0)
+
+    with pytest.raises(ValueError):
+        detect_lines(image, min_line_length=0)
+
+    with pytest.raises(ValueError):
+        detect_lines(image, max_line_gap=-1)
+
+
+def test_detect_lines_returns_empty_array_when_no_lines_are_found():
+    image = np.zeros((100, 100), dtype=np.uint8)
+
+    lines = detect_lines(image)
+
+    assert isinstance(lines, np.ndarray)
+    assert len(lines) == 0
+
+
+def test_detect_lines_finds_line_segments():
+    image = np.zeros((100, 100), dtype=np.uint8)
+
+    cv2.line(image, (10, 10), (90, 90), 255, 2)
+
+    lines = detect_lines(image)
+
+    assert isinstance(lines, np.ndarray)
+    assert len(lines) > 0
+    assert lines.shape[2] == 4
