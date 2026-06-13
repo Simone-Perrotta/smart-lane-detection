@@ -8,7 +8,8 @@ from src.smart_lane_detection.lane_detector import (
     detect_edges,
     region_of_interest,
     detect_lines,
-    draw_lines
+    draw_lines,
+    detect_lanes
     )
 
 def test_convert_to_grayscale_returns_2d_image():
@@ -205,3 +206,23 @@ def test_draw_lines_handles_empty_lines():
     output = draw_lines(image, lines)
 
     assert np.array_equal(output, image)
+
+def test_detect_lanes_raises_error_when_image_is_none():
+    with pytest.raises(ValueError):
+        detect_lanes(None)
+
+def test_detect_lanes_returns_image_with_same_shape():
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+
+    output = detect_lanes(image)
+
+    assert isinstance(output, np.ndarray)
+    assert output.shape == image.shape
+
+def test_detect_lanes_does_not_modify_original_image():
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+    original = image.copy()
+
+    detect_lanes(image)
+
+    assert np.array_equal(image, original)

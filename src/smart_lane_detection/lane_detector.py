@@ -128,3 +128,45 @@ def draw_lines(image: np.ndarray, lines: np.ndarray, color: tuple = (0, 255, 0),
     
     return line_image
 
+def detect_lanes(image: np.ndarray) -> np.ndarray:
+    """
+    Run the full lane detection pipeline.
+    """
+
+    # Validate the input image before starting the pipeline.
+    if image is None:
+        raise ValueError("Input image is None.")
+    
+    # Step 1: Convert the image from BGR to grayscale.
+    grayscale = convert_to_grayscale(image)
+
+    # Step 2: Apply Gaussian blur to reduce image noise.
+    blurred = apply_gaussian_blur(grayscale)
+
+    # Step 3: Detect edges using the Canny algorithm.
+    edges = detect_edges(blurred)
+
+    # Step 4: Define the region of interest.
+    # We focus only on the lower triangular area of the image because
+    # road lanes are usually located in front of the vehicle.
+    height, width = edges.shape
+    vertices = np.array(
+        [[
+            (0, height),               # Bottom-left corner
+            (width // 2, height // 2), # Approximate center of the road ahead
+            (width, height),           # Bottom-right corner
+        ]],
+        dtype=np.int32,
+    )
+
+    # Step 5: Apply the region mask to keep only the road area.
+    masked_edges = region_of_interest(edges, vertices)
+
+    # Step 6: Detect line segments inside the masked edge image
+    # using the Probabilistic Hough Transform.
+    lines = detect_lines(masked_edges)
+
+    # Step 7: Draw the detected line segments on a copy of the original image.
+    line_image = draw_lines(image, lines)
+
+    return line_image
