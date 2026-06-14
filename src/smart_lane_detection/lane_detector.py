@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 
+
 def convert_to_grayscale(image: np.ndarray) -> np.ndarray:
     """
     Convert a BGR image with 3 channels to grayscale with a single channel.
@@ -11,7 +12,9 @@ def convert_to_grayscale(image: np.ndarray) -> np.ndarray:
     
     if len(image.shape) != 3 or image.shape[2] != 3:
         raise ValueError("Input image must be a BGR image with 3 channels.")
+    
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
 
 def apply_gaussian_blur(image: np.ndarray, kernel_size: int = 5) -> np.ndarray:
     """
@@ -23,7 +26,9 @@ def apply_gaussian_blur(image: np.ndarray, kernel_size: int = 5) -> np.ndarray:
     
     if kernel_size <= 0 or kernel_size % 2 == 0:
         raise ValueError("Kernel size must be a positive odd integer.")
+    
     return cv2.GaussianBlur(image, (kernel_size, kernel_size), 0)
+
 
 def detect_edges(image: np.ndarray, low_threshold: int = 50, high_threshold: int = 150) -> np.ndarray:
     """
@@ -43,6 +48,7 @@ def detect_edges(image: np.ndarray, low_threshold: int = 50, high_threshold: int
         raise ValueError("Low threshold must be less than high threshold.")
     
     return cv2.Canny(image, low_threshold, high_threshold)
+
 
 def region_of_interest(image: np.ndarray, vertices: np.ndarray) -> np.ndarray:
     """
@@ -69,9 +75,15 @@ def region_of_interest(image: np.ndarray, vertices: np.ndarray) -> np.ndarray:
 
     return masked_image
 
-def detect_lines(image: np.ndarray, rho: float = 1, theta: float = np.pi / 180, threshold: int = 15, 
-                 min_line_length: int = 50, max_line_gap: int = 100) -> np.ndarray:
-    
+
+def detect_lines(
+    image: np.ndarray,
+    rho: float = 1,
+    theta: float = np.pi / 180,
+    threshold: int = 25,
+    min_line_length: int = 60,
+    max_line_gap: int = 30,
+) -> np.ndarray:
     """
     Detect lines in the input image using the Hough Transform.
     """
@@ -89,21 +101,103 @@ def detect_lines(image: np.ndarray, rho: float = 1, theta: float = np.pi / 180, 
         raise ValueError("Min line length must be positive and max line gap must be non-negative.")
     
     lines = cv2.HoughLinesP(
-        image, 
-        rho, 
-        theta, 
+        image,
+        rho,
+        theta,
         threshold,
         np.array([]),
-        minLineLength=min_line_length, 
-        maxLineGap=max_line_gap
+        minLineLength=min_line_length,
+        maxLineGap=max_line_gap,
     )
     
     if lines is None:
-        return np.array([])  # Return an empty array if no lines are detected
+        return np.array([])  # Return an empty array if no lines are detected.
     
     return lines
 
-def draw_lines(image: np.ndarray, lines: np.ndarray, color: tuple = (0, 255, 0), thickness: int = 2) -> np.ndarray:
+
+def filter_lane_lines(lines: np.ndarray, image_width: int, image_height: int) -> np.ndarray:
+    """
+    Filter Hough line segments and keep only lines that are likely to be lane markings.
+    """
+
+    if lines is None or len(lines) == 0:
+        return np.array([])
+
+    if image_width <= 0:
+        raise ValueError("Image width must be a positive integer.")
+    
+    if image_height <= 0:
+        raise ValueError("Image height must be a positive integer.")
+
+    left_candidates = []
+    right_candidates = []
+
+    image_center = image_width // 2
+    left_lane_end = int(image_width * 0.42)
+    right_lane_start = int(image_width * 0.58)
+
+    # Lane markings should usually reach the lower part of the image.
+    # This helps remove road arrows and markings that are more central or higher up.
+    min_y = int(image_height * 0.70)
+
+    for line in lines:
+        for x1, y1, x2, y2 in line:
+            # Avoid division by zero for vertical lines.
+            if x2 == x1:
+                continue
+
+            # Keep only lines that reach the lower part of the image.
+            if max(y1, y2) < min_y:
+                continue
+
+            slope = (y2 - y1) / (x2 - x1)
+            abs_slope = abs(slope)
+
+            # Lane markings are usually diagonal.
+            # Very horizontal lines are often arrows or road signs.
+            if abs_slope < 0.5:
+                continue
+
+            # Very vertical lines are usually not lane markings in this camera view.
+            if abs_slope > 2.5:
+                continue
+
+            # Left lane: negative slope and clearly on the left side of the image.
+            if slope < 0 and x1 < left_lane_end and x2 < image_center:
+                left_candidates.append([[x1, y1, x2, y2]])
+
+            # Right lane: positive slope and clearly on the right side of the image.
+            elif slope > 0 and x1 > image_center and x2 > right_lane_start:
+                right_candidates.append([[x1, y1, x2, y2]])
+
+    filtered_lines = []
+
+    # Keep the left line that is more external, meaning more to the left.
+    if left_candidates:
+        best_left_line = min(
+            left_candidates,
+            key=lambda line: min(line[0][0], line[0][2]),
+        )
+        filtered_lines.append(best_left_line)
+
+    # Keep the right line that is more external, meaning more to the right.
+    if right_candidates:
+        best_right_line = max(
+            right_candidates,
+            key=lambda line: max(line[0][0], line[0][2]),
+        )
+        filtered_lines.append(best_right_line)
+
+    return np.array(filtered_lines, dtype=np.int32)
+
+
+def draw_lines(
+    image: np.ndarray,
+    lines: np.ndarray,
+    color: tuple = (0, 255, 0),
+    thickness: int = 2,
+) -> np.ndarray:
     """
     Draw lines on the input image.
     """
@@ -111,8 +205,8 @@ def draw_lines(image: np.ndarray, lines: np.ndarray, color: tuple = (0, 255, 0),
     if image is None:
         raise ValueError("Input image is None.")
     
-    if lines is None or len(lines) == 0:
-        lines = np.array([])  # Return an empty array if no lines are provided
+    if lines is None:
+        lines = np.array([])  # Treat missing lines as an empty array.
     
     if len(color) != 3:
         raise ValueError("Color must be a tuple of 3 elements (B, G, R).")
@@ -127,6 +221,7 @@ def draw_lines(image: np.ndarray, lines: np.ndarray, color: tuple = (0, 255, 0),
             cv2.line(line_image, (x1, y1), (x2, y2), color, thickness)
     
     return line_image
+
 
 def detect_lanes(image: np.ndarray) -> np.ndarray:
     """
@@ -147,14 +242,13 @@ def detect_lanes(image: np.ndarray) -> np.ndarray:
     edges = detect_edges(blurred)
 
     # Step 4: Define the region of interest.
-    # We focus only on the lower triangular area of the image because
-    # road lanes are usually located in front of the vehicle.
     height, width = edges.shape
     vertices = np.array(
         [[
-            (0, height),               # Bottom-left corner
-            (width // 2, height // 2), # Approximate center of the road ahead
-            (width, height),           # Bottom-right corner
+            (int(width * 0.05), height),              # Bottom-left area
+            (int(width * 0.42), int(height * 0.70)),  # Upper-left area
+            (int(width * 0.58), int(height * 0.70)),  # Upper-right area
+            (int(width * 0.98), height),              # Bottom-right area
         ]],
         dtype=np.int32,
     )
@@ -166,7 +260,11 @@ def detect_lanes(image: np.ndarray) -> np.ndarray:
     # using the Probabilistic Hough Transform.
     lines = detect_lines(masked_edges)
 
-    # Step 7: Draw the detected line segments on a copy of the original image.
-    line_image = draw_lines(image, lines)
+    # Step 7: Keep only line segments that are likely to be lane markings.
+    # This helps reduce false positives such as arrows, road signs, and horizontal markings.
+    filtered_lines = filter_lane_lines(lines, width, height)
+
+    # Step 8: Draw the filtered line segments on a copy of the original image.
+    line_image = draw_lines(image, filtered_lines)
 
     return line_image

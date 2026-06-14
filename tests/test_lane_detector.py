@@ -9,7 +9,8 @@ from src.smart_lane_detection.lane_detector import (
     region_of_interest,
     detect_lines,
     draw_lines,
-    detect_lanes
+    detect_lanes,
+    filter_lane_lines
     )
 
 def test_convert_to_grayscale_returns_2d_image():
@@ -226,3 +227,58 @@ def test_detect_lanes_does_not_modify_original_image():
     detect_lanes(image)
 
     assert np.array_equal(image, original)
+
+def test_filter_lane_lines_returns_empty_array_when_no_lines_are_provided():
+    lines = np.array([])
+
+    filtered_lines = filter_lane_lines(lines, image_width=100, image_height=100)
+
+    assert isinstance(filtered_lines, np.ndarray)
+    assert len(filtered_lines) == 0
+
+
+def test_filter_lane_lines_raises_error_when_image_width_is_invalid():
+    lines = np.array([[[10, 90, 40, 40]]], dtype=np.int32)
+
+    with pytest.raises(ValueError):
+        filter_lane_lines(lines, image_width=0, image_height=100)
+
+
+def test_filter_lane_lines_keeps_valid_left_lane_line():
+    lines = np.array([[[10, 90, 40, 40]]], dtype=np.int32)
+
+    filtered_lines = filter_lane_lines(lines, image_width=100, image_height=100)
+
+    assert len(filtered_lines) == 1
+    assert np.array_equal(filtered_lines[0][0], np.array([10, 90, 40, 40]))
+
+
+def test_filter_lane_lines_keeps_valid_right_lane_line():
+    lines = np.array([[[60, 40, 90, 90]]], dtype=np.int32)
+
+    filtered_lines = filter_lane_lines(lines, image_width=100, image_height=100)
+
+    assert len(filtered_lines) == 1
+    assert np.array_equal(filtered_lines[0][0], np.array([60, 40, 90, 90]))
+
+
+def test_filter_lane_lines_removes_horizontal_lines():
+    lines = np.array([[[10, 50, 90, 55]]], dtype=np.int32)
+
+    filtered_lines = filter_lane_lines(lines, image_width=100, image_height=100)
+
+    assert len(filtered_lines) == 0
+
+
+def test_filter_lane_lines_removes_vertical_lines():
+    lines = np.array([[[50, 10, 50, 90]]], dtype=np.int32)
+
+    filtered_lines = filter_lane_lines(lines, image_width=100, image_height=100)
+
+    assert len(filtered_lines) == 0
+
+def test_filter_lane_lines_raises_error_when_image_height_is_invalid():
+    lines = np.array([[[10, 90, 40, 40]]], dtype=np.int32)
+
+    with pytest.raises(ValueError):
+        filter_lane_lines(lines, image_width=100, image_height=0)
