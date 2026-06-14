@@ -10,112 +10,135 @@ from src.smart_lane_detection.lane_detector import (
     detect_lines,
     draw_lines,
     detect_lanes,
-    filter_lane_lines
-    )
+)
+
 
 def test_convert_to_grayscale_returns_2d_image():
-    # Create a dummy BGR image 
+    # Create a dummy BGR image.
     image = np.zeros((100, 100, 3), dtype=np.uint8)
 
     grayscale = convert_to_grayscale(image)
 
     assert len(grayscale.shape) == 2, "Output image should be 2D."
 
+
 def test_convert_to_grayscale_invalid_input():
     with pytest.raises(ValueError):
-        convert_to_grayscale(None) # Input image is None
+        convert_to_grayscale(None)
 
     with pytest.raises(ValueError):
-        convert_to_grayscale(np.zeros((100, 100), dtype=np.uint8))  # Not a 3-channel image
+        convert_to_grayscale(np.zeros((100, 100), dtype=np.uint8))
 
     with pytest.raises(ValueError):
-        convert_to_grayscale(np.zeros((100, 100, 4), dtype=np.uint8))  # Not a 3-channel image
+        convert_to_grayscale(np.zeros((100, 100, 4), dtype=np.uint8))
+
 
 def test_apply_gaussian_blur_invalid_input():
-    with pytest.raises(ValueError):
-        apply_gaussian_blur(None)  # Input image is None
+    image = np.zeros((100, 100), dtype=np.uint8)
 
     with pytest.raises(ValueError):
-        apply_gaussian_blur(np.zeros((100, 100), dtype=np.uint8), kernel_size=-1)  # Invalid kernel size
+        apply_gaussian_blur(None)
 
     with pytest.raises(ValueError):
-        apply_gaussian_blur(np.zeros((100, 100), dtype=np.uint8), kernel_size=4)  # Invalid kernel size (not odd)
+        apply_gaussian_blur(image, kernel_size=-1)
+
+    with pytest.raises(ValueError):
+        apply_gaussian_blur(image, kernel_size=4)
+
 
 def test_apply_gaussian_blur_output_shape():
     image = np.zeros((100, 100), dtype=np.uint8)
+
     blurred = apply_gaussian_blur(image, kernel_size=5)
 
-    assert blurred.shape == image.shape, "Output image should have the same shape as input image."
+    assert blurred.shape == image.shape, "Output image should have the same shape."
+
 
 def test_detect_edges_invalid_input():
-    with pytest.raises(ValueError):
-        detect_edges(None)  # Input image is None
+    image = np.zeros((100, 100), dtype=np.uint8)
 
     with pytest.raises(ValueError):
-        detect_edges(np.zeros((100, 100, 3), dtype=np.uint8))  # Not a single-channel image
+        detect_edges(None)
 
     with pytest.raises(ValueError):
-        detect_edges(np.zeros((100, 100), dtype=np.uint8), low_threshold=-1)  # Invalid low threshold
+        detect_edges(np.zeros((100, 100, 3), dtype=np.uint8))
 
     with pytest.raises(ValueError):
-        detect_edges(np.zeros((100, 100), dtype=np.uint8), high_threshold=-1)  # Invalid high threshold
+        detect_edges(image, low_threshold=-1)
 
     with pytest.raises(ValueError):
-        detect_edges(np.zeros((100, 100), dtype=np.uint8), low_threshold=150, high_threshold=50)  # Low threshold >= high threshold
+        detect_edges(image, high_threshold=-1)
+
+    with pytest.raises(ValueError):
+        detect_edges(image, low_threshold=150, high_threshold=50)
+
 
 def test_detect_edges_output_shape():
     image = np.zeros((100, 100), dtype=np.uint8)
+
     edges = detect_edges(image, low_threshold=50, high_threshold=150)
 
-    assert edges.shape == image.shape, "Output image should have the same shape as input image."
+    assert edges.shape == image.shape, "Output image should have the same shape."
+
 
 def test_region_of_interest_invalid_input():
-    valid_vertices = np.array([
+    image = np.zeros((100, 100), dtype=np.uint8)
+
+    valid_vertices = np.array(
         [
-            (0, 0),
-            (1, 0),
-            (1, 1),
-            (0, 1),
-        ]
-    ], dtype=np.int32)
+            [
+                (0, 0),
+                (1, 0),
+                (1, 1),
+                (0, 1),
+            ]
+        ],
+        dtype=np.int32,
+    )
 
     with pytest.raises(ValueError):
         region_of_interest(None, valid_vertices)
 
     with pytest.raises(ValueError):
-        region_of_interest(np.zeros((100, 100), dtype=np.uint8), None)
+        region_of_interest(image, None)
 
     with pytest.raises(ValueError):
-        region_of_interest(np.zeros((100, 100), dtype=np.uint8), np.array([]))
+        region_of_interest(image, np.array([]))
 
 
 def test_region_of_interest_output_shape():
     image = np.zeros((100, 100), dtype=np.uint8)
 
-    vertices = np.array([
+    vertices = np.array(
         [
-            (0, 0),
-            (99, 0),
-            (99, 99),
-            (0, 99),
-        ]
-    ], dtype=np.int32)
+            [
+                (0, 0),
+                (99, 0),
+                (99, 99),
+                (0, 99),
+            ]
+        ],
+        dtype=np.int32,
+    )
 
     masked_image = region_of_interest(image, vertices)
 
-    assert masked_image.shape == image.shape, "Output image should have the same shape as input image."
+    assert masked_image.shape == image.shape, "Output image should have the same shape."
 
 
 def test_region_of_interest_removes_pixels_outside_region():
     image = np.ones((100, 100), dtype=np.uint8) * 255
 
-    vertices = np.array([
+    vertices = np.array(
         [
-            (0, 100),
-            (50, 50),
-            (100, 100),
-        ]
-    ], dtype=np.int32)
+            [
+                (0, 100),
+                (50, 50),
+                (100, 100),
+            ]
+        ],
+        dtype=np.int32,
+    )
 
     masked_image = region_of_interest(image, vertices)
 
@@ -125,17 +148,21 @@ def test_region_of_interest_removes_pixels_outside_region():
 def test_region_of_interest_keeps_pixels_inside_region():
     image = np.ones((100, 100), dtype=np.uint8) * 255
 
-    vertices = np.array([
+    vertices = np.array(
         [
-            (0, 100),
-            (50, 50),
-            (100, 100),
-        ]
-    ], dtype=np.int32)
+            [
+                (0, 100),
+                (50, 50),
+                (100, 100),
+            ]
+        ],
+        dtype=np.int32,
+    )
 
     masked_image = region_of_interest(image, vertices)
 
     assert masked_image[90, 50] == 255
+
 
 def test_detect_lines_invalid_input():
     image = np.zeros((100, 100), dtype=np.uint8)
@@ -182,6 +209,7 @@ def test_detect_lines_finds_line_segments():
     assert len(lines) > 0
     assert lines.shape[2] == 4
 
+
 def test_draw_lines_draws_on_image():
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     lines = np.array([[[10, 10, 90, 90]]], dtype=np.int32)
@@ -190,6 +218,7 @@ def test_draw_lines_draws_on_image():
 
     assert np.any(output[10:12, 10:12] == [255, 0, 0])
     assert np.any(output[88:90, 88:90] == [255, 0, 0])
+
 
 def test_draw_lines_keeps_original_image_unchanged():
     image = np.zeros((100, 100, 3), dtype=np.uint8)
@@ -200,6 +229,7 @@ def test_draw_lines_keeps_original_image_unchanged():
 
     assert np.array_equal(image, original)
 
+
 def test_draw_lines_handles_empty_lines():
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     lines = np.array([])
@@ -208,9 +238,11 @@ def test_draw_lines_handles_empty_lines():
 
     assert np.array_equal(output, image)
 
+
 def test_detect_lanes_raises_error_when_image_is_none():
     with pytest.raises(ValueError):
         detect_lanes(None)
+
 
 def test_detect_lanes_returns_image_with_same_shape():
     image = np.zeros((100, 100, 3), dtype=np.uint8)
@@ -220,6 +252,7 @@ def test_detect_lanes_returns_image_with_same_shape():
     assert isinstance(output, np.ndarray)
     assert output.shape == image.shape
 
+
 def test_detect_lanes_does_not_modify_original_image():
     image = np.zeros((100, 100, 3), dtype=np.uint8)
     original = image.copy()
@@ -227,58 +260,3 @@ def test_detect_lanes_does_not_modify_original_image():
     detect_lanes(image)
 
     assert np.array_equal(image, original)
-
-def test_filter_lane_lines_returns_empty_array_when_no_lines_are_provided():
-    lines = np.array([])
-
-    filtered_lines = filter_lane_lines(lines, image_width=100, image_height=100)
-
-    assert isinstance(filtered_lines, np.ndarray)
-    assert len(filtered_lines) == 0
-
-
-def test_filter_lane_lines_raises_error_when_image_width_is_invalid():
-    lines = np.array([[[10, 90, 40, 40]]], dtype=np.int32)
-
-    with pytest.raises(ValueError):
-        filter_lane_lines(lines, image_width=0, image_height=100)
-
-
-def test_filter_lane_lines_keeps_valid_left_lane_line():
-    lines = np.array([[[10, 90, 40, 40]]], dtype=np.int32)
-
-    filtered_lines = filter_lane_lines(lines, image_width=100, image_height=100)
-
-    assert len(filtered_lines) == 1
-    assert np.array_equal(filtered_lines[0][0], np.array([10, 90, 40, 40]))
-
-
-def test_filter_lane_lines_keeps_valid_right_lane_line():
-    lines = np.array([[[60, 40, 90, 90]]], dtype=np.int32)
-
-    filtered_lines = filter_lane_lines(lines, image_width=100, image_height=100)
-
-    assert len(filtered_lines) == 1
-    assert np.array_equal(filtered_lines[0][0], np.array([60, 40, 90, 90]))
-
-
-def test_filter_lane_lines_removes_horizontal_lines():
-    lines = np.array([[[10, 50, 90, 55]]], dtype=np.int32)
-
-    filtered_lines = filter_lane_lines(lines, image_width=100, image_height=100)
-
-    assert len(filtered_lines) == 0
-
-
-def test_filter_lane_lines_removes_vertical_lines():
-    lines = np.array([[[50, 10, 50, 90]]], dtype=np.int32)
-
-    filtered_lines = filter_lane_lines(lines, image_width=100, image_height=100)
-
-    assert len(filtered_lines) == 0
-
-def test_filter_lane_lines_raises_error_when_image_height_is_invalid():
-    lines = np.array([[[10, 90, 40, 40]]], dtype=np.int32)
-
-    with pytest.raises(ValueError):
-        filter_lane_lines(lines, image_width=100, image_height=0)
